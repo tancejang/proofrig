@@ -143,7 +143,7 @@ Prove the harness works before declaring success:
 
 1. Make a trivial change through the full flow (plan, build, simplify, verify) and confirm the e2e check runs and passes.
 2. Make a deliberately broken change (golden task) and confirm the verifier or the checks catch it.
-3. Confirm a protected-path edit, an out-of-component edit, a forbidden command, and empty input to the PreToolUse hook are blocked, and a read-only command on a protected path (for example `cat harness/CLAUDE.md`) is allowed.
+3. Confirm a protected-path edit, an out-of-component edit, a forbidden command, and empty input to the PreToolUse hook are blocked, and a read-only command on a protected path (for example `ls 2>&1; cat harness/CLAUDE.md`, which catches write patterns that match the `>` in `2>&1`) is allowed.
 4. Confirm the stuck rule triggers a stop-and-report.
 5. **Routing test.** For each component, confirm a slice is routed to that component's implementer and that implementer can build, test, and lint its component.
 6. **Visual test (if UI).** Capture a screenshot with the visual check, confirm it passes against the baseline, introduce a deliberate visual regression and confirm it is caught, and confirm an attempt to overwrite a baseline during a locked run is blocked. Run the capture twice and confirm identical results; if it flakes, fix determinism before continuing.
