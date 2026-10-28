@@ -1,0 +1,49 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude plugin validate *)",
+      "Bash(node --check *)",
+      "Bash(node e2e/run.mjs*)",
+      "Bash(node harness/golden-tasks/hooks.test.mjs)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git switch *)",
+      "Bash(git push -u origin *)",
+      "Bash(gh pr create *)",
+      "Bash(gh pr view *)",
+      "PowerShell(claude plugin validate *)",
+      "PowerShell(node --check *)",
+      "PowerShell(node e2e/run.mjs*)",
+      "PowerShell(node harness/golden-tasks/hooks.test.mjs)",
+      "PowerShell(git status*)",
+      "PowerShell(git diff*)",
+      "PowerShell(git log*)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f *)",
+      "Bash(gh pr merge*)",
+      "Bash(git reset --hard*)",
+      "PowerShell(git push --force*)",
+      "PowerShell(gh pr merge*)",
+      "Read(./.env)",
+      "Read(./.env.*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell",
+        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.mjs\"" }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop.mjs\"", "timeout": 300 }]
+      }
+    ]
+  }
+}

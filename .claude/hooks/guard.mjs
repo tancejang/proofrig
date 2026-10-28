@@ -1,0 +1,63 @@
+// PreToolUse guard for the proofrig harness. Exit 2 blocks the call; stderr is shown to the
+// model. What it enforces and how to adjust it: harness/CLAUDE.md.
+import fs from 'node:fs';
+import path from 'node:path';
+
+const req = JSON.parse(fs.readFileSync(0, 'utf8'));
+const root = process.env.CLAUDE_PROJECT_DIR || req.cwd;
+const unlocked = process.env.PROOFRIG_UNLOCK === '1';
+const agent = req.agent_type ?? '';
+const input = req.tool_input ?? {};
+
+const PROTECTED = /^(harness|\.claude|e2e)(\/|$)/;
+const COMPONENT = /^(plugins\/|\.claude-plugin\/|README\.md$|PROGRESS\.md$)/;
+const WRITERS = new Set(['implementer-plugin', 'simplifier']);
+const READ_ONLY = new Set(['verifier', 'planner']);
+
+function block(msg) {
+  console.error(`proofrig guard: ${msg}`);
+  process.exit(2);
+}
+
+function checkPath(file) {
+  const p = path.relative(root, path.resolve(req.cwd ?? root, file)).replaceAll('\\', '/');
+  if (p.startsWith('..') || path.isAbsolute(p)) block(`${file} is outside the project`);
+  if (/^\.git(\/|$)/.test(p)) block('.git/ is never edited directly');
+  const spec = p.match(/^specs\/([^/]+)\/(SPEC\.md$|checks\/|\.locked$)/);
+  if (spec && fs.existsSync(path.join(root, 'specs', spec[1], '.locked'))) {
+    block(`specs/${spec[1]} is locked for this run; stop and report if the spec or a check is wrong`);
+  }
+  if (PROTECTED.test(p) && !unlocked) block(`${p} is protected (harness/, .claude/, e2e/); a human must start the session with PROOFRIG_UNLOCK=1`);
+  if (READ_ONLY.has(agent)) block(`${agent} is read-only`);
+  if (WRITERS.has(agent) && !COMPONENT.test(p)) block(`${agent} may edit only plugins/, .claude-plugin/, README.md, PROGRESS.md`);
+}
+
+// ponytail: pattern-based shell checks, a creative command can slip past; the verifier's
+// diff review (REV-6) is the backstop. Upgrade path: sandbox or deny Bash writes entirely.
+function checkShell(cmd) {
+  const always = [
+    [/git\s+push\b.*(--force\b|--force-with-lease|\s-f\b|\s\+\S)/, 'force-push'],
+    [/git\s+push\b.*(\s|:)main(\s|$)/, 'push to main'],
+    [/gh\s+pr\s+merge\b/, 'merging PRs'],
+    [/git\s+reset\s+--hard\b/, 'git reset --hard'],
+    [/--no-verify\b/, '--no-verify'],
+    [/\brm\s+-[a-z]*(rf|fr)|Remove-Item\b.*-Recurse/i, 'recursive delete'],
+    [/(^|[\s'"/])\.env(\.|\s|$|['"])/, '.env access'],
+    [/\b(rm|del|mv|Remove-Item|Move-Item)\b.*\.locked\b/, 'removing a spec lock'],
+  ];
+  for (const [re, what] of always) if (re.test(cmd)) block(`${what} is not allowed`);
+  const writes = /(>|\btee\b|\bsed\s+-i|\bcp\b|\bmv\b|Set-Content|Out-File|Add-Content|Copy-Item|Move-Item)/;
+  if (!unlocked && new RegExp(`${writes.source}.*\\b(harness|\\.claude|e2e)/`).test(cmd)) {
+    block('shell writes to harness/, .claude/, or e2e/ need PROOFRIG_UNLOCK=1');
+  }
+  if (READ_ONLY.has(agent)) {
+    const mutating = /(^|[;&|]\s*)git\s+(commit|push|checkout|switch|reset|rebase|merge|stash|add|rm|restore)\b|(?<![0-9&])>(?!&)|\btee\b|\bsed\s+-i|\b(rm|mv|cp)\s|Set-Content|Out-File|New-Item|Remove-Item/;
+    if (mutating.test(cmd)) block(`${agent} is read-only; Bash is for running checks and reading git state`);
+  }
+}
+
+if (['Edit', 'Write', 'MultiEdit', 'NotebookEdit'].includes(req.tool_name)) {
+  checkPath(input.file_path ?? input.notebook_path ?? '');
+} else if (['Bash', 'PowerShell'].includes(req.tool_name)) {
+  checkShell(input.command ?? '');
+}
