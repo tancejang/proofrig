@@ -5,7 +5,6 @@
 - `/proofrig:ship`: checks for an existing `specs/<feature>/.locked` (stop) or unlocked `SPEC.md` (resume, do not overwrite) before grilling, asks before the fail-first run of a slow or costly check, writes specs to `specs/<feature>/SPEC.md`, and points to the Visual check spec as `../init/references/templates.md`.
 - `/proofrig:init`: generated hooks run as `node "$CLAUDE_PROJECT_DIR/.claude/hooks/<name>.mjs"` with forward slashes, so they work under Git Bash on Windows and on POSIX. The PreToolUse hook fails closed (exit 2) on empty or unparsable input, and the dry run and golden tasks check that a read-only command on a protected path is allowed.
 - `plugin.json`: adds `author`, `homepage`, and `repository`.
-- README: adds Developing proofrig, Troubleshooting, an example `/goal` line, a fuller repo layout, and E2E prerequisites.
 
 ## 0.1.1 - 2026-10-29
 
