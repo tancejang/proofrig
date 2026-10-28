@@ -126,8 +126,10 @@ Rules for generation:
 Write `.claude/settings.json` with permissions and hooks derived from the interview:
 
 - Permissions: allow only the commands the harness needs; deny prod access, secrets files, force-push, push to protected branches, destructive DB commands.
+- **Hook commands:** write each one as `node "$CLAUDE_PROJECT_DIR/.claude/hooks/<name>.mjs"` (or the same form with the system's own runtime), escaping the inner quotes as `\"` in `settings.json`. Use forward slashes, and use no tools a platform may lack (for example `jq`) in the command or the script. Claude Code runs hooks through Git Bash on Windows, so this form works there and on POSIX.
 - **Stop hook:** run tests, lint, typecheck, and mechanical checks; fail loudly with output so the run cannot end on red.
 - **PreToolUse hook:** block edits to protected paths (including `harness/`, CI config, lockfiles unless intended) and dangerous commands. Also block edits to `specs/<feature>/checks/` and `SPEC.md` whenever `specs/<feature>/.locked` exists, and block edits to `harness/visual/baselines/` and reference images while a run is locked. `/proofrig:ship` creates the lock file when the user approves the spec, so checks are writable while being authored and frozen during the `/goal` run.
+- **Fail closed:** the PreToolUse hook blocks (exit 2) on empty or unparsable input, for example stdin that is not JSON. Claude Code treats any other non-zero exit, such as an uncaught parse error, as a non-blocking error and lets the tool call through.
 - **Component path scoping:** an implementer may edit only the paths its component owns (plus the files of its own slice's tests). Edits outside are blocked and reported.
 - **Write `.claude/settings.json` last**, after every other generated file. Its hooks take effect immediately in the current session and will block any further writes to `harness/` and `.claude/`.
 - **Human unlock:** the protected-path hook lets edits to `harness/` and `.claude/` through only when the session was started with `PROOFRIG_UNLOCK=1` in its environment. An agent cannot set its parent session's environment, so only a human can unlock.
@@ -141,7 +143,7 @@ Prove the harness works before declaring success:
 
 1. Make a trivial change through the full flow (plan, build, simplify, verify) and confirm the e2e check runs and passes.
 2. Make a deliberately broken change (golden task) and confirm the verifier or the checks catch it.
-3. Confirm a protected-path edit, an out-of-component edit, and a forbidden command are blocked.
+3. Confirm a protected-path edit, an out-of-component edit, a forbidden command, and empty input to the PreToolUse hook are blocked, and a read-only command on a protected path (for example `cat harness/CLAUDE.md`) is allowed.
 4. Confirm the stuck rule triggers a stop-and-report.
 5. **Routing test.** For each component, confirm a slice is routed to that component's implementer and that implementer can build, test, and lint its component.
 6. **Visual test (if UI).** Capture a screenshot with the visual check, confirm it passes against the baseline, introduce a deliberate visual regression and confirm it is caught, and confirm an attempt to overwrite a baseline during a locked run is blocked. Run the capture twice and confirm identical results; if it flakes, fix determinism before continuing.
