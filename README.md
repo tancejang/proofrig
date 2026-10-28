@@ -38,17 +38,79 @@ proofrig builds that harness for your system, and prepares each feature so one p
 
 ## How a feature moves
 
+```mermaid
+flowchart LR
+  I["<b>/proofrig:init</b><br/>once per system"] -->|"harness, agents,<br/>hooks, rules"| S["<b>/proofrig:ship</b><br/>every feature"]
+  S -->|"SPEC.md, locked checks,<br/>/goal line"| G["<b>/goal</b><br/>unattended run"]
+  G -->|"report and<br/>stacked PRs"| H(["You review<br/>and merge"])
+  H -.->|"next feature"| S
+
+  classDef human fill:#fff3bf,stroke:#e0a800,color:#000
+  class H human
 ```
-/proofrig:init   (once)      scan -> design (defaults first) -> system interview -> e2e gate
-                             -> generate -> enforce -> dry run -> report
 
-/proofrig:ship   (feature)   grill -> size check -> SPEC.md + checks -> your review -> /goal line
-                             (checks are then locked for the run)
+Yellow steps are the human gates. Everything else runs on its own. Detail for each stage:
 
-/goal            (the run)   plan -> build -> simplify -> verify -> fix loop -> stacked PRs -> report
+### 1. `/proofrig:init`: build the harness (once)
+
+```mermaid
+flowchart TD
+  A1["Scan repos<br/>components, commands, existing tests"] --> A2["Propose a complete default harness<br/>preset and design table"]
+  A2 --> A3(["You: reply 'go' or edit rows"])
+  A3 --> A4["Ask only what the scan<br/>could not infer"]
+  A4 --> A5{"Reliable e2e<br/>command exists?"}
+  A5 -- no --> A6["Stop and report the gap<br/>build e2e first"]
+  A5 -- yes --> A7["Generate the harness<br/>rules, agents, checks, goal template"]
+  A7 --> A8["Enforce<br/>hooks and permissions"]
+  A8 --> A9["Dry run<br/>golden tasks, routing, visual,<br/>model smoke tests"]
+  A9 --> A10["Report<br/>what was generated, known weaknesses"]
+
+  classDef human fill:#fff3bf,stroke:#e0a800,color:#000
+  classDef stop fill:#ffe3e3,stroke:#c92a2a,color:#000
+  class A3 human
+  class A6 stop
 ```
 
-The run stops and reports, instead of guessing, when the same failure repeats three times, the spec is ambiguous, a contract changes unexpectedly, or it would touch a migration, a protected path, an existing check or a baseline.
+### 2. `/proofrig:ship`: turn a feature into checkable work (every feature)
+
+```mermaid
+flowchart TD
+  B1["Grill you on the feature<br/>the codebase answers what it can"] --> B2{"Too big for<br/>one goal?"}
+  B2 -- yes --> B3["Split it<br/>take the first feature only"]
+  B3 --> B4
+  B2 -- no --> B4["Write SPEC.md<br/>one runnable check per requirement<br/>stacked-PR slice plan"]
+  B4 --> B5["Run every check now<br/>each must fail for the right reason"]
+  B5 --> B6(["You review the spec<br/>and especially the checks"])
+  B6 --> B7["Lock SPEC.md and the checks"]
+  B7 --> B8["Print the ready-to-paste /goal line"]
+
+  classDef human fill:#fff3bf,stroke:#e0a800,color:#000
+  class B6 human
+```
+
+### 3. `/goal`: the unattended run (one slice at a time)
+
+```mermaid
+flowchart TD
+  C1["Plan the slice"] --> C2["Build<br/>the implementer for the slice's component"]
+  C2 --> C3["Simplify<br/>max 2 rounds, all checks re-run after"]
+  C3 --> C4["Verify<br/>independent verifier re-runs the checks<br/>visual verifier for UI slices"]
+  C4 --> C5{"Violations?"}
+  C5 -- yes --> C2
+  C5 -- no --> C6["Commit and open the slice's PR<br/>base is the previous slice"]
+  C6 --> C7{"More slices?"}
+  C7 -- yes --> C1
+  C7 -- no --> C8["Final report<br/>evidence per requirement"]
+  C8 --> C9(["You review the report and the PR stack<br/>the agent never merges"])
+  C4 -.-> S["Stop and report instead of guessing<br/>same failure 3 times, spec ambiguity,<br/>contract change, migration, or a need to touch<br/>a protected path, check or baseline"]
+
+  classDef human fill:#fff3bf,stroke:#e0a800,color:#000
+  classDef stop fill:#ffe3e3,stroke:#c92a2a,color:#000
+  class C9 human
+  class S stop
+```
+
+Red marks where a run halts: it reports what it found rather than working around a failing check.
 
 ## What `/proofrig:init` generates
 
