@@ -194,6 +194,7 @@ Every bad or surprising run should end in a harness change. Append it to `harnes
 ```
 .claude-plugin/marketplace.json
 LICENSE
+e2e/                run.mjs, approve.mjs, fixtures/ (plugin's own test suite, not shipped)
 plugins/proofrig/
   .claude-plugin/plugin.json
   skills/
@@ -202,6 +203,10 @@ plugins/proofrig/
 ```
 
 Skills are namespaced by the plugin name, hence `/proofrig:init` and `/proofrig:ship`. After editing, run `claude plugin validate .`.
+
+## E2E
+
+`node e2e/run.mjs [with-e2e|no-e2e]` (exit 0 = pass). Runs `/proofrig:init` for real (via `claude -p`) against throwaway copies of `e2e/fixtures/`, then feeds sample tool calls to the generated hooks: protected paths, `.locked` specs, force-push, and the Stop hook on red/green tests. `no-e2e` asserts init stops at the gap report. Live model runs: up to 10 minutes each, no retries. Set `PROOFRIG_E2E_MODEL` to your router's exact model ID; on Windows, `PROOFRIG_BASH` overrides the Git Bash path. Workspaces and logs are left in the temp dir for inspection.
 
 ## License
 
