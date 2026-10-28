@@ -30,7 +30,11 @@ Before writing the spec, estimate size. If the feature is too big for one goal (
 
 ## Step 3: Write SPEC.md
 
-Create `specs/<feature>/SPEC.md` at the system root (or the location the harness defines). Structure:
+Create `specs/<feature>/SPEC.md` at the system root. Before writing it:
+- If `specs/<feature>/.locked` already exists, stop: the spec is approved and frozen for a run. Tell the human; only a human removes a lock, so never delete it yourself.
+- If `specs/<feature>/SPEC.md` already exists without a `.locked`, resume from it and its `checks/`: continue from the first unfinished step and do not overwrite it.
+
+Structure:
 
 ```markdown
 # <Feature>
@@ -78,9 +82,10 @@ Writing rules:
 For every requirement, create a runnable check under `specs/<feature>/checks/` using the system's existing test tooling and style: unit or integration tests, API contract tests, e2e flows, or a script with a clear exit code. Rules:
 
 - Checks must fail before the feature is built and pass after. Run each check now against the current code to confirm it fails for the right reason (not a typo or setup error). A check that passes before the work exists is worthless.
+- If a check is too slow or costly to run while authoring (for example a live model e2e), ask the user to confirm before its fail-first run; if they decline, skip the run and list the check as "fail-before not confirmed" in the spec review.
 - Prefer the highest-level realistic check (e2e or contract) for user-visible behavior, plus focused tests for edge cases.
 - Choose the check kind per requirement from the component's kinds in `harness/components.md`, within what `harness/harness.config.md` allows.
-- For UI requirements, write a visual check spec (`skills/init/references/templates.md`, "Visual check spec") under `specs/<feature>/checks/visual/`: route, state and seed, viewports, reference, tolerance. Use baseline-diff when an approved baseline or mockup exists. Otherwise use rubric-review with concrete, checkable rubric lines, and mark it advisory unless the config says rubric review blocks. New baselines are never auto-approved: they appear in the report for the user to approve.
+- For UI requirements, write a visual check spec (the "Visual check spec" section of `../init/references/templates.md`, relative to this skill's base directory) under `specs/<feature>/checks/visual/`: route, state and seed, viewports, reference, tolerance. Use baseline-diff when an approved baseline or mockup exists. Otherwise use rubric-review with concrete, checkable rubric lines, and mark it advisory unless the config says rubric review blocks. New baselines are never auto-approved: they appear in the report for the user to approve.
 - For a visual check, "fails before" means the screen is missing or differs from the reference.
 - No flaky ingredients (sleeps, real clocks, network to third parties). Use the harness's seed data and fixtures.
 - Requirements that truly cannot be checked automatically stay `MANUAL`, with exactly what the reviewer should look at. List them clearly; they appear in the final report.
@@ -94,7 +99,7 @@ Present to the user, concisely:
 1. The requirements table with component, kind, and checks (and which are MANUAL or advisory), including each visual check's route, state, viewport, and reference.
 2. The slice plan and merge order.
 3. Contracts changed and human checkpoints.
-4. The result of running the checks now (all failing, and why).
+4. The result of running the checks now (all failing, and why), plus any check marked "fail-before not confirmed".
 5. Any weak spots: requirements with thin coverage, risky areas.
 
 Ask the user to review the **checks**, not only the spec. Apply their changes and re-run the failing-check confirmation. Do not print the `/goal` line until the user approves. On approval, create `specs/<feature>/.locked` (empty file); the harness hook then freezes `SPEC.md` and `checks/` for the run.
