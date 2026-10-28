@@ -193,6 +193,7 @@ Every bad or surprising run should end in a harness change. Append it to `harnes
 
 ```
 .claude-plugin/marketplace.json
+LICENSE
 plugins/proofrig/
   .claude-plugin/plugin.json
   skills/
@@ -204,4 +205,4 @@ Skills are namespaced by the plugin name, hence `/proofrig:init` and `/proofrig:
 
 ## License
 
-None yet. Add a `LICENSE` file before sharing widely.
+[MIT](LICENSE)
