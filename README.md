@@ -131,6 +131,7 @@ Red marks where a run halts: it reports what it found rather than working around
 CLAUDE.md                        system map: repos, contracts, commands, non-goals
 .claude/
   settings.json                  permissions, hooks, router env
+  hooks/                         guard and stop hook scripts (node)
   agents/                        planner, implementer-<component>, simplifier,
                                  verifier (read-only), verifier-visual (if UI)
 harness/
@@ -193,7 +194,7 @@ Each agent file carries its own `model:` line, so you can run, for example, a st
 
 proofrig is **v0.1.x** (see [CHANGELOG](plugins/proofrig/CHANGELOG.md)). It installs, both skills load, and the e2e suite runs `/proofrig:init` on small fixtures, but it has not yet been exercised on a real multi-repo system, so expect to tune it.
 
-- Hooks (stop checks, protected paths, component path scoping, `.locked` freezing) are specified by the skills and written into your `.claude/settings.json` by `init`. They are not shipped as code in the plugin (the hooks under `.claude/hooks/` are this repo's own harness), so the dry run is what proves they work in your Claude Code version.
+- Hooks (stop checks, protected paths, component path scoping, `.locked` freezing) are specified by the skills; `init` registers them in your `.claude/settings.json` and writes the hook scripts to `.claude/hooks/`. They are not shipped as code in the plugin (the hooks under `.claude/hooks/` are this repo's own harness), so the dry run is what proves they work in your Claude Code version.
 - A subagent's `model:` string reaching a router unchanged is assumed, not guaranteed. The per-role smoke test checks it.
 - Visual checks are only as good as their determinism. A flaky check is treated as a bug, not retried until green.
 - Humans still review the spec, the checks, and every PR. proofrig reduces what you have to catch, not what you are responsible for.
@@ -229,13 +230,14 @@ This repo dogfoods proofrig: it has its own harness (`CLAUDE.md`, `harness/`, `.
 Checks to run after any change:
 
 ```bash
-claude plugin validate .                    # manifests and skill frontmatter
+claude plugin validate .                    # marketplace manifest and its plugin entry
+claude plugin validate plugins/proofrig     # plugin.json and skill frontmatter
 node harness/golden-tasks/hooks.test.mjs    # golden tests for .claude/hooks/guard.mjs and stop.mjs
 ```
 
 The Stop hook also runs `claude plugin validate .` and `node --check` on the scripts in `e2e/`, `.claude/hooks/`, and `harness/golden-tasks/` before every turn ends.
 
-`harness/`, `.claude/`, and `e2e/` are protected by `.claude/hooks/guard.mjs`. To change them on purpose (rules, hooks, the e2e suite), a human starts the session with `PROOFRIG_UNLOCK=1` in the environment: `PROOFRIG_UNLOCK=1 claude`, or in PowerShell `$env:PROOFRIG_UNLOCK = '1'; claude` (it stays set for that shell). An agent cannot set it for its own session. Unlocking never opens `.git/` or a locked spec.
+`harness/`, `.claude/`, and `e2e/` are protected by `.claude/hooks/guard.mjs`. To change them on purpose (rules, hooks, the e2e suite), a human starts the session with `PROOFRIG_UNLOCK=1` in the environment: `PROOFRIG_UNLOCK=1 claude`, or in PowerShell `$env:PROOFRIG_UNLOCK = '1'; claude` (it stays set for that shell). An agent cannot set it for its own session. Unlocking never lets the Edit and Write tools into `.git/` or a locked spec.
 
 ## E2E
 
@@ -248,13 +250,13 @@ Prerequisites:
 - `git` and Node. Stdlib only, nothing to install.
 - Windows: Git Bash. Hooks are run through bash, the way Claude Code runs them. The default is `C:/Program Files/Git/bin/bash.exe`; set `PROOFRIG_BASH` to another `bash.exe` if Git is installed elsewhere (not `System32\bash.exe`, which is WSL). On other platforms `bash` from PATH is used, and `PROOFRIG_BASH` overrides it there too.
 
-Duration: each case is one live init run with a 10-minute timeout and no retries, so a full run takes about 20 minutes.
+Duration: each case is one live init run with a 10-minute timeout and no retries, so a full run takes up to about 20 minutes.
 
 ## Troubleshooting
 
-- **`/proofrig:init` or `/proofrig:ship` is not listed.** Run `claude plugin marketplace update proofrig`, then `claude plugin install proofrig@proofrig`, and restart Claude Code. In a clone of this repo, `claude plugin validate .` reports manifest and skill frontmatter errors.
-- **An edit is blocked with "is protected (harness/, .claude/, e2e/)".** This repo's PreToolUse hook (`.claude/hooks/guard.mjs`) guards those paths, and shell writes into them too. If the change is intended, a human restarts the session with `PROOFRIG_UNLOCK=1` (see Developing proofrig). An agent should stop and report instead.
-- **An edit is blocked with "specs/<feature> is locked for this run".** `SPEC.md`, `checks/`, and `.locked` are frozen while `specs/<feature>/.locked` exists, even with `PROOFRIG_UNLOCK=1`. If the spec or a check is wrong, a human deletes `specs/<feature>/.locked` (the hook blocks agents from removing it by shell) and re-runs `/proofrig:ship`, which resumes from the existing `SPEC.md`. Harnesses generated by `/proofrig:init` freeze locked specs the same way.
+- **`/proofrig:init` or `/proofrig:ship` is not listed.** Run `claude plugin marketplace update proofrig`, then `claude plugin install proofrig@proofrig`, and restart Claude Code. In a clone of this repo, `claude plugin validate .` checks the marketplace manifest and `claude plugin validate plugins/proofrig` checks `plugin.json` and the skills.
+- **An edit or shell command is blocked with "is protected (harness/, .claude/, e2e/)" or "shell writes to harness/, .claude/, or e2e/ need PROOFRIG_UNLOCK=1".** This repo's PreToolUse hook (`.claude/hooks/guard.mjs`) guards those paths. If the change is intended, a human restarts the session with `PROOFRIG_UNLOCK=1` (see Developing proofrig). An agent should stop and report instead.
+- **An edit is blocked with "specs/<feature> is locked for this run".** `SPEC.md`, `checks/`, and `.locked` are frozen while `specs/<feature>/.locked` exists, even with `PROOFRIG_UNLOCK=1`. If the spec or a check is wrong, a human deletes `specs/<feature>/.locked` (the hook blocks agents from removing it by shell) and re-runs `/proofrig:ship`, which resumes from the existing `SPEC.md`. Harnesses generated by `/proofrig:init` freeze `SPEC.md` and `checks/` while `.locked` exists; they do not protect `.locked` itself.
 - **"proofrig: STUCK, same check failure 3 times".** The Stop hook (`.claude/hooks/stop.mjs`, see Developing proofrig) blocks the turn from ending while one of its checks fails. After the same failure 3 times in a session, it lets the turn end with this message so the run reports instead of looping. Run the failing command printed below the message, fix the cause, and continue.
 - **E2E hook checks fail on Windows** (bash not found, or WSL errors). Install Git for Windows, or set `PROOFRIG_BASH` (see E2E prerequisites), for example `PROOFRIG_BASH="D:/Git/bin/bash.exe"`.
 - **E2E fails at "init run finished".** Open the log path printed just above it. Usually `claude` is not logged in, or `PROOFRIG_E2E_MODEL` names a model your account or router does not serve.
