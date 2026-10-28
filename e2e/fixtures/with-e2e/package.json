@@ -1,0 +1,8 @@
+{
+  "name": "calc-fixture",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "e2e": "node e2e.js"
+  }
+}

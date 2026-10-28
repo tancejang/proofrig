@@ -24,7 +24,7 @@ The default flow it sets up (the user may reshape it in Phase 2):
 ## Mode
 
 - No `harness/` directory at the system root: **init mode**, run all phases.
-- `harness/` exists: **update mode**. Read `harness/harness.config.md` (do not re-ask recorded decisions), re-scan, diff against the harness, and propose only the changes (new repo or component, changed command, stale rule, new rule from `harness/failure-log.md`). Do not regenerate files the user has edited.
+- `harness/` exists: **update mode**. Read `harness/harness.config.md` (do not re-ask recorded decisions), re-scan, diff against the harness, and propose only the changes (new repo or component, changed command, stale rule, new rule from `harness/failure-log.md`). Do not regenerate files the user has edited. The harness hooks protect `harness/` and `.claude/`: if `PROOFRIG_UNLOCK=1` is not set, stop and ask the user to restart the session with it before applying changes, and to restart without it afterwards.
 
 ## Phase 1: Scan (no questions yet)
 
@@ -59,7 +59,7 @@ Rows in the table (these are the only knobs):
 
 Non-negotiables: the e2e gate (Phase 4), an independent verifier that re-runs checks, and locked checks and baselines during runs. If the user turns one off, warn once and record it as a weakness at the top of `harness/CLAUDE.md`. Do not silently drop them.
 
-Write the accepted design to `harness/harness.config.md` (template in `references/templates.md`) with a one-line rationale per decision. Later phases generate from this file, and update mode and `/proofrig:ship` read it.
+Once the e2e gate (Phase 4) passes, write the accepted design to `harness/harness.config.md` (template in `references/templates.md`) with a one-line rationale per decision. Write nothing under `harness/` before then: a stopped init must leave no `harness/` behind, or the next run would wrongly start in update mode. Later phases generate from this file, and update mode and `/proofrig:ship` read it.
 
 ## Phase 3: System interview
 
@@ -129,6 +129,8 @@ Write `.claude/settings.json` with permissions and hooks derived from the interv
 - **Stop hook:** run tests, lint, typecheck, and mechanical checks; fail loudly with output so the run cannot end on red.
 - **PreToolUse hook:** block edits to protected paths (including `harness/`, CI config, lockfiles unless intended) and dangerous commands. Also block edits to `specs/<feature>/checks/` and `SPEC.md` whenever `specs/<feature>/.locked` exists, and block edits to `harness/visual/baselines/` and reference images while a run is locked. `/proofrig:ship` creates the lock file when the user approves the spec, so checks are writable while being authored and frozen during the `/goal` run.
 - **Component path scoping:** an implementer may edit only the paths its component owns (plus the files of its own slice's tests). Edits outside are blocked and reported.
+- **Write `.claude/settings.json` last**, after every other generated file. Its hooks take effect immediately in the current session and will block any further writes to `harness/` and `.claude/`.
+- **Human unlock:** the protected-path hook lets edits to `harness/` and `.claude/` through only when the session was started with `PROOFRIG_UNLOCK=1` in its environment. An agent cannot set its parent session's environment, so only a human can unlock.
 - Document in `harness/CLAUDE.md` what each hook does and how to adjust it.
 
 Hooks and permissions are the enforcement layer; do not rely on prose for anything that must never happen.
