@@ -14,6 +14,9 @@ The per-feature spec and checks are where accuracy comes from. Do not shortcut t
 1. Confirm `harness/` exists at the system root with `goal-template.md`, `rules/`, and `e2e/README.md`. If not, stop and tell the user to run `/proofrig:init` first.
 2. Read `harness/CLAUDE.md`, `harness/harness.config.md`, `harness/components.md`, the root `CLAUDE.md`, and `harness/rules/project.md` so questions and checks use the system's real commands, components, check kinds, and conventions.
 3. Read `harness/failure-log.md` and avoid repeating past failures when writing the spec and checks.
+4. Name the feature in kebab-case from the user's request, then check `specs/<feature>/`:
+   - If `specs/<feature>/.locked` already exists, stop: the spec is approved and frozen for a run. Tell the human; only a human removes a lock, so never delete it yourself.
+   - If `specs/<feature>/SPEC.md` already exists without a `.locked`, resume from it and do not overwrite it: grill only on decisions it does not record, then continue at Step 4 if `checks/` is missing or empty, otherwise at Step 5.
 
 ## Step 1: Grill
 
@@ -30,11 +33,7 @@ Before writing the spec, estimate size. If the feature is too big for one goal (
 
 ## Step 3: Write SPEC.md
 
-Create `specs/<feature>/SPEC.md` at the system root. Before writing it:
-- If `specs/<feature>/.locked` already exists, stop: the spec is approved and frozen for a run. Tell the human; only a human removes a lock, so never delete it yourself.
-- If `specs/<feature>/SPEC.md` already exists without a `.locked`, resume from it and its `checks/`: continue from the first unfinished step and do not overwrite it.
-
-Structure:
+Create `specs/<feature>/SPEC.md` at the system root. Structure:
 
 ```markdown
 # <Feature>
@@ -102,7 +101,7 @@ Present to the user, concisely:
 4. The result of running the checks now (all failing, and why), plus any check marked "fail-before not confirmed".
 5. Any weak spots: requirements with thin coverage, risky areas.
 
-Ask the user to review the **checks**, not only the spec. Apply their changes and re-run the failing-check confirmation. Do not print the `/goal` line until the user approves. On approval, create `specs/<feature>/.locked` (empty file); the harness hook then freezes `SPEC.md` and `checks/` for the run.
+Ask the user to review the **checks**, not only the spec. Apply their changes and re-run the failing-check confirmation (costly checks again only with the user's confirmation). Do not print the `/goal` line until the user approves. On approval, create `specs/<feature>/.locked` (empty file); the harness hook then freezes `SPEC.md` and `checks/` for the run.
 
 ## Step 6: Print the /goal line
 
