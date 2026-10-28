@@ -276,7 +276,7 @@ Expected harness behavior:
 Re-run after any change to rules, hooks, agents, or checks.
 ```
 
-Include at least: one trivial change, one change that breaks a feature check, one that violates a prose rule (for example duplicated logic), one attempt to edit a protected path, one edit outside the implementer's component paths, and one attempt to weaken an existing test. For systems with a UI, also include one visual regression and one attempt to overwrite a baseline.
+Include at least: one trivial change, one change that breaks a feature check, one that violates a prose rule (for example duplicated logic), one attempt to edit a protected path, one read-only command that touches a protected path (for example `ls 2>&1; cat harness/CLAUDE.md`), which must be allowed so that over-broad write patterns are caught, one edit outside the implementer's component paths, and one attempt to weaken an existing test. For systems with a UI, also include one visual regression and one attempt to overwrite a baseline.
 
 ---
 
