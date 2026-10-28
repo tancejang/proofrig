@@ -1,8 +1,13 @@
 {
   "name": "proofrig",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "description": "Harness engineering for Claude Code: build a verification harness once per system, then ship features reliably with /goal.",
+  "author": {
+    "name": "tancejang"
+  },
+  "homepage": "https://github.com/tancejang/proofrig",
+  "repository": "https://github.com/tancejang/proofrig",
   "keywords": [
     "harness",
     "agents",
