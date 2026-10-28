@@ -16,7 +16,7 @@ The per-feature spec and checks are where accuracy comes from. Do not shortcut t
 3. Read `harness/failure-log.md` and avoid repeating past failures when writing the spec and checks.
 4. Name the feature in kebab-case from the user's request, then check `specs/<feature>/`:
    - If `specs/<feature>/.locked` already exists, stop: the spec is approved and frozen for a run. Tell the human; only a human removes a lock, so never delete it yourself.
-   - If `specs/<feature>/SPEC.md` already exists without a `.locked`, resume from it and do not overwrite it: grill only on decisions it does not record, then continue at Step 4 if `checks/` is missing or empty, otherwise at Step 5.
+   - If `specs/<feature>/SPEC.md` already exists without a `.locked`, resume from it and do not overwrite it: grill only on decisions it does not record and add those answers to it, then continue at Step 4 if any requirement lacks a check, otherwise at Step 5.
 
 ## Step 1: Grill
 
@@ -29,7 +29,7 @@ Rules for the grilling:
 
 ## Step 2: Size check
 
-Before writing the spec, estimate size. If the feature is too big for one goal (guideline: more than about 6 slices, or it spans many unrelated areas, or it mixes a risky migration with feature work), propose a split into separate features, agree on the first one with the user, and continue with that one only. Big goals fail far more often than small ones.
+Before writing the spec, estimate size. If the feature is too big for one goal (guideline: more than about 6 slices, or it spans many unrelated areas, or it mixes a risky migration with feature work), propose a split into separate features, agree on the first one with the user, and continue with that one only. If that changes the feature name, repeat Preconditions item 4 for the new name. Big goals fail far more often than small ones.
 
 ## Step 3: Write SPEC.md
 
