@@ -1,0 +1,14 @@
+{
+  "name": "proofrig",
+  "description": "Harness engineering for Claude Code: build a verification harness once per system, then ship features reliably with /goal.",
+  "owner": {
+    "name": "tancejang"
+  },
+  "plugins": [
+    {
+      "name": "proofrig",
+      "source": "./plugins/proofrig",
+      "description": "/proofrig:init builds an agent harness for a system; /proofrig:ship turns a feature into a spec, runnable checks, and a ready-to-paste /goal line."
+    }
+  ]
+}
