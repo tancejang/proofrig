@@ -39,6 +39,16 @@ test('protected paths', () => {
 test('component scoping and read-only agents', () => {
   assert.ok(edit('CLAUDE.md', { agent_type: 'implementer-plugin' }).blocked, 'out-of-component');
   assert.ok(!edit('README.md', { agent_type: 'implementer-plugin' }).blocked, 'in-component');
+  assert.ok(edit('.claude/hooks/guard.mjs', { agent_type: 'implementer-plugin' }).blocked, 'plugin implementer, harness path');
+  const unlocked = (file, agent_type) => hook('guard.mjs', { tool_name: 'Edit', agent_type, tool_input: { file_path: path.join(root, file) } }, { PROOFRIG_UNLOCK: '1' }).blocked;
+  for (const f of ['.claude/hooks/guard.mjs', 'harness/failure-log.md', '.github/workflows/ci.yml', '.gitignore', 'CLAUDE.md', 'PROGRESS.md']) {
+    assert.ok(!unlocked(f, 'implementer-harness'), `harness implementer: ${f}`);
+  }
+  for (const f of ['.claude/settings.json', '.claude/agents/verifier.md', 'e2e/run.mjs', 'README.md', 'plugins/proofrig/skills/init/SKILL.md']) {
+    assert.ok(unlocked(f, 'implementer-harness'), `harness implementer blocked: ${f}`);
+  }
+  for (const f of ['README.md', '.claude/hooks/guard.mjs']) assert.ok(!unlocked(f, 'simplifier'), `simplifier: ${f}`);
+  assert.ok(unlocked('.claude/settings.json', 'simplifier'), 'simplifier blocked: settings.json');
   assert.ok(edit('README.md', { agent_type: 'verifier' }).blocked, 'verifier edit');
   assert.ok(sh('git commit -m x', { agent_type: 'verifier' }).blocked, 'verifier commit');
   assert.ok(sh('echo x > notes.txt', { agent_type: 'verifier' }).blocked, 'verifier redirect');
