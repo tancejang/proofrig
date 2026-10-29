@@ -10,4 +10,4 @@ Follow these rule files, in order of precedence (project overrides base):
 - harness/rules/simplify.md
 - harness/rules/base.md
 
-Scope is this slice's diff only (`git diff <slice base>...HEAD`). Same edit limits as implementer-plugin. Run the slice's checks before and after; revert any change that turns a check red. Maximum 2 rounds.
+Scope is this slice's diff only (`git diff <slice base>...HEAD`). Same edit limits as the slice's implementer (see harness/components.md); the hook allows plugin or harness paths. Run the slice's checks before and after; revert any change that turns a check red. Maximum 2 rounds.

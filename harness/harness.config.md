@@ -5,7 +5,7 @@ Preset: Standard. Chosen because: small single-repo plugin (Markdown skills + JS
 | Row | Decision | Why |
 |-----|----------|-----|
 | Pipeline | Spec, plan, build, simplify, verify, fix loop, stacked PRs, report. Human gates: spec + checks approval, any protected-path change | Default flow; the spec gate is where accuracy comes from |
-| Roles | Planner, one implementer (`implementer-plugin`), simplifier, read-only verifier. No visual verifier | One component, no UI |
+| Roles | Planner, two implementers (`implementer-plugin`, `implementer-harness`), simplifier, read-only verifier. No visual verifier | Two components (plugin; harness added 2026-10-29 so harness work can run under /goal, in sessions started with `PROOFRIG_UNLOCK=1`), no UI |
 | Verification | Stop hook: manifest validate + syntax checks (blocking). Done-criteria: `node e2e/run.mjs` (blocking). Verifier scores prose rules | Live e2e is ~20 min and costs model calls, too heavy for every Stop |
 | Autonomy | Balanced | Default |
 | Models | See models.md | Router only serves the Opus route reliably today |

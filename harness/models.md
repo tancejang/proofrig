@@ -7,6 +7,7 @@ Router: local gateway. Base URL env: `ANTHROPIC_BASE_URL` (set in the user's she
 | Orchestrator (/goal session) | cc/claude-opus-5-5 | claude-opus-5-5 | Strongest route available | see Phase 7 notes in harness/CLAUDE.md |
 | Planner | cc/claude-opus-5-5 | claude-opus-5-5 | Strongest route available | |
 | Implementer (plugin) | cc/claude-opus-5-5 | claude-opus-5-5 | Cheaper routes unavailable (Haiku route quota-exhausted 2026-10-28) | |
+| Implementer (harness) | cc/claude-opus-5-5 | claude-opus-5-5 | Same | |
 | Simplifier | cc/claude-opus-5-5 | claude-opus-5-5 | Same | |
 | Verifier | cc/claude-opus-5-5 | claude-opus-5-5 | Same model as implementer: known weakness | |
 

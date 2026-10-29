@@ -10,8 +10,14 @@ const agent = req.agent_type ?? '';
 const input = req.tool_input ?? {};
 
 const PROTECTED = /^(harness|\.claude|e2e)(\/|$)/;
-const COMPONENT = /^(plugins\/|\.claude-plugin\/|README\.md$|PROGRESS\.md$)/;
-const WRITERS = new Set(['implementer-plugin', 'simplifier']);
+// Component paths per writing agent (harness/components.md). PROGRESS.md is the run's notes file.
+const PLUGIN = /^(plugins\/|\.claude-plugin\/|README\.md$|PROGRESS\.md$)/;
+const HARNESS = /^(\.claude\/hooks\/|harness\/|\.github\/|\.gitignore$|CLAUDE\.md$|PROGRESS\.md$)/;
+const SCOPES = {
+  'implementer-plugin': [PLUGIN],
+  'implementer-harness': [HARNESS],
+  simplifier: [PLUGIN, HARNESS],
+};
 const READ_ONLY = new Set(['verifier', 'planner']);
 
 function block(msg) {
@@ -29,7 +35,7 @@ function checkPath(file) {
   }
   if (PROTECTED.test(p) && !unlocked) block(`${p} is protected (harness/, .claude/, e2e/); a human must start the session with PROOFRIG_UNLOCK=1`);
   if (READ_ONLY.has(agent)) block(`${agent} is read-only`);
-  if (WRITERS.has(agent) && !COMPONENT.test(p)) block(`${agent} may edit only plugins/, .claude-plugin/, README.md, PROGRESS.md`);
+  if (SCOPES[agent] && !SCOPES[agent].some((re) => re.test(p))) block(`${agent} may edit only its component's paths (harness/components.md)`);
 }
 
 // ponytail: pattern-based shell checks, a creative command can slip past; the verifier's
