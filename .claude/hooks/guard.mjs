@@ -3,7 +3,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const req = JSON.parse(fs.readFileSync(0, 'utf8'));
+// Fail closed: Claude Code treats a crash (exit 1) as non-blocking.
+let req;
+try {
+  req = JSON.parse(fs.readFileSync(0, 'utf8'));
+} catch {}
+if (!req || typeof req !== 'object' || Array.isArray(req)) block('hook input is empty or not a JSON object; failing closed');
 const root = process.env.CLAUDE_PROJECT_DIR || req.cwd;
 const agent = req.agent_type ?? '';
 const input = req.tool_input ?? {};
@@ -53,8 +58,15 @@ function checkShell(cmd) {
     [/\b(rm|del|mv|Remove-Item|Move-Item)\b.*\.locked\b/, 'removing a spec lock'],
   ];
   for (const [re, what] of always) if (re.test(cmd)) block(`${what} is not allowed`);
-  const writes = /(>|\btee\b|\bsed\s+-i|\bcp\b|\bmv\b|Set-Content|Out-File|Add-Content|Copy-Item|Move-Item)/;
-  if (agent && new RegExp(`${writes.source}.*\\b(harness|\\.claude|e2e)/`).test(cmd)) {
+  // A protected path token: optional quote, optional prefix ending in / or \ (quotes allowed, as in
+  // "$(pwd)"/harness), then the name as a whole path component (so specs/demo-harness/ is not
+  // protected). Case-insensitive (Windows FS).
+  const PROT = String.raw`['"]?(?:[^\s;&|<>]*[\/\\])?(?:harness|\.claude|e2e)(?=[\/\\\s'";&|)]|$)`;
+  // Redirect into it: >, >>, >|, >&, &>, N>. The targets of 2>&1 and 2>/dev/null never match PROT.
+  const redirect = new RegExp(String.raw`>[>|&]?\s*${PROT}`, 'i');
+  // A writing command with a protected path argument later in the same ; & | segment.
+  const writer = new RegExp(String.raw`\b(?:tee|cp|mv|(?:Set|Add)-Content|Out-File|(?:Copy|Move)-Item|sed\b(?=.*\s-(?:[a-z]*i|-in-place)))\b.*[\s=:]${PROT}`, 'i');
+  if (agent && (redirect.test(cmd) || cmd.split(/[;&|\n]/).some((s) => writer.test(s)))) {
     block('subagents may not write to harness/, .claude/, or e2e/ by shell; use Edit or Write');
   }
   if (READ_ONLY.has(agent)) {
