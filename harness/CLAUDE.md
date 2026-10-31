@@ -6,6 +6,7 @@
 - Shell-command blocking is pattern-based (`.claude/hooks/guard.mjs`); the verifier's diff review (REV-6) is the backstop.
 - No linter, formatter, or duplication detector exists for Markdown skills; IMPL-1/3/6/11 are scored by the verifier only.
 - e2e does not cover `/proofrig:ship`, real subagents, or live component scoping inside generated harnesses.
+- The main session may edit `harness/`, `.claude/`, `e2e/` (no unlock step, user decision 2026-10-31). An orchestrator weakening the grading files is detected, not prevented: REV-9, the goal template's stop condition, and PR review.
 - Router env lives in the user's shell, not in `.claude/settings.json` (public repo).
 
 Flow: Spec -> Plan -> Build -> Simplify -> Verify -> Fix loop -> Stacked PRs -> Report
@@ -14,18 +15,18 @@ Flow: Spec -> Plan -> Build -> Simplify -> Verify -> Fix loop -> Stacked PRs -> 
 - Planner: rules/base.md + rules/planner.md + rules/project.md
 - Implementer, routed by the slice's component (components.md):
   - `implementer-plugin`: rules/base.md + rules/implementer.md + rules/components/plugin.md + rules/project.md
-  - `implementer-harness`: rules/base.md + rules/implementer.md + rules/components/harness.md + rules/project.md (needs `PROOFRIG_UNLOCK=1`)
+  - `implementer-harness`: rules/base.md + rules/implementer.md + rules/components/harness.md + rules/project.md
 - Simplifier: rules/base.md + rules/simplify.md + rules/project.md
 - Verifier (read-only): rules/base.md + rules/reviewer.md + rules/project.md
 
 ## Enforcement
 - **PreToolUse `.claude/hooks/guard.mjs`** (Edit, Write, MultiEdit, NotebookEdit, Bash, PowerShell). Exit 2 blocks.
-  - `harness/`, `.claude/`, `e2e/` are protected unless the session was started with `PROOFRIG_UNLOCK=1` (an agent cannot set its parent's environment). Shell writes there are blocked the same way.
+  - `harness/`, `.claude/`, `e2e/` are protected: only the main session and the owning component's implementer may edit them. No subagent may write there by shell.
   - `.git/` and paths outside the project: always blocked.
-  - `specs/<f>/SPEC.md`, `specs/<f>/checks/`, and `.locked` itself are frozen while `specs/<f>/.locked` exists, unlock or not; removing a lock by shell is blocked.
+  - `specs/<f>/SPEC.md`, `specs/<f>/checks/`, and `.locked` itself are frozen while `specs/<f>/.locked` exists, for every agent including the main session; removing a lock by shell is blocked.
   - `implementer-plugin` may edit only `plugins/`, `.claude-plugin/`, `README.md`, `PROGRESS.md`; `implementer-harness` only `.claude/hooks/`, `harness/`, `.github/`, `.gitignore`, `CLAUDE.md`, `PROGRESS.md`; `simplifier` either set. No agent may edit `.claude/settings.json`, `.claude/agents/`, or `e2e/`. `verifier` and `planner` may not write at all (shell included, by pattern).
   - Always blocked: force-push, push to `main`, `gh pr merge`, `git reset --hard`, `--no-verify`, recursive deletes, `.env` access.
-  - To adjust: edit the regexes at the top of `guard.mjs` (needs `PROOFRIG_UNLOCK=1`), then re-run `node harness/golden-tasks/hooks.test.mjs`.
+  - To adjust: edit the regexes at the top of `guard.mjs`, then re-run `node harness/golden-tasks/hooks.test.mjs`.
 - **Stop `.claude/hooks/stop.mjs`**: runs `claude plugin validate .` and `node --check` on every `.mjs` in `e2e/`, `.claude/hooks/`, `harness/golden-tasks/`. Red blocks the turn from ending; the same failure 3 times lets it end with a STUCK message so it is reported.
 - **Permissions** (`.claude/settings.json`): allow only the commands the flow needs; deny force-push, `gh pr merge`, `git reset --hard`, `.env` reads.
 
