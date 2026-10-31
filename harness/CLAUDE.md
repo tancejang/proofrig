@@ -28,7 +28,7 @@ Flow: Spec -> Plan -> Build -> Simplify -> Verify -> Fix loop -> Stacked PRs -> 
   - `implementer-plugin` may edit only `plugins/`, `.claude-plugin/`, `README.md`, `PROGRESS.md`; `implementer-harness` only `.claude/hooks/`, `harness/`, `.github/`, `.gitignore`, `CLAUDE.md`, `PROGRESS.md`; `simplifier` either set. No agent may edit `.claude/settings.json`, `.claude/agents/`, or `e2e/`. `verifier` and `planner` may not write at all (shell included, by pattern).
   - Always blocked: force-push, push to `main`, `gh pr merge`, `git reset --hard`, `--no-verify`, recursive deletes, `.env` access.
   - To adjust: edit the regexes at the top of `guard.mjs`, then re-run `node harness/golden-tasks/hooks.test.mjs`.
-- **Stop `.claude/hooks/stop.mjs`**: runs `claude plugin validate .` and `node --check` on every `.mjs` in `e2e/`, `.claude/hooks/`, `harness/golden-tasks/`. Red blocks the turn from ending; the same failure 3 times lets it end with a STUCK message so it is reported.
+- **Stop `.claude/hooks/stop.mjs`**: runs `claude plugin validate --strict .`, `claude plugin validate --strict plugins/proofrig` (a skill with no frontmatter blocks), and `node --check` on every `.mjs` in `e2e/`, `.claude/hooks/`, `harness/golden-tasks/`. Red blocks the turn from ending; the same failure 3 times lets it end with a STUCK message so it is reported.
 - **Permissions** (`.claude/settings.json`): allow only the commands the flow needs; deny force-push, `gh pr merge`, `git reset --hard`, `.env` reads.
 
 ## Limits
