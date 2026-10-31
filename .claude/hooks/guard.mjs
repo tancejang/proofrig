@@ -59,12 +59,15 @@ function checkShell(cmd) {
   ];
   for (const [re, what] of always) if (re.test(cmd)) block(`${what} is not allowed`);
   // Old rule (any write operator anywhere before a protected path), minus exactly what R1 frees:
-  // fd dups (2>&1), null sinks (2>/dev/null), arrows inside quotes, and names glued to '-' (specs/x-harness/).
+  // fd dups only when the digits end the word (2>&1, not >&1/../harness), null sinks (2>/dev/null),
+  // arrows inside simple quotes only (no preceding backslash; no newline, $, backtick, or backslash
+  // inside, so substitutions and escaped/odd quoting keep the arrow), and names glued to '-'
+  // (specs/x-harness/). Only '-' frees .claude; harness/e2e are also freed after a word char.
   const masked = cmd
-    .replace(/\d*>&\d+|\d*>\s*\/dev\/null\b/g, ' ')
-    .replace(/'[^']*'|"[^"]*"/g, (q) => q.replace(/->|→/g, '  '));
+    .replace(/\d*>&\d+(?=[\s;&|)]|$)|\d*>\s*\/dev\/null\b/g, ' ')
+    .replace(/(?<!\\)'[^'\\`$\n]*'|(?<!\\)"[^"\\`$\n]*"/g, (q) => q.replace(/->|→/g, '  '));
   const writes = String.raw`(>|\btee\b|\bsed\b(?=[\s\S]*\s-(?:[a-z]*i|-in-place))|\bcp\b|\bmv\b|Set-Content|Out-File|Add-Content|Copy-Item|Move-Item)`;
-  const prot = String.raw`(?<![\w-])(harness|\.claude|e2e)([\/\\\s'";&|)]|$)`;
+  const prot = String.raw`(?:(?<![\w-])(?:harness|e2e)|(?<!-)\.claude)([\/\\\s'";&|)]|$)`;
   if (agent && new RegExp(`${writes}[\\s\\S]*${prot}`, 'i').test(masked)) {
     block('subagents may not write to harness/, .claude/, or e2e/ by shell; use Edit or Write');
   }

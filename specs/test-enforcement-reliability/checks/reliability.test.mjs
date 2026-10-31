@@ -147,3 +147,20 @@ test('R12 rubric: B1-B5 pass and the score is at least 8.5 with no base regressi
   const all = score('--min', '8.5');
   assert.strictEqual(all.status, 0, all.stdout);
 });
+
+test('R14 guard blocks the fixed probe list of write forms found in verifier rounds 1-3', () => {
+  for (const c of [
+    // round 1: quoted separators, glued prefixes
+    "sed -i 's/a/b/;s/c/d/' harness/CLAUDE.md", 'cp "a;b" harness/x', 'echo x | tee "a|b" e2e/x',
+    'echo x > ""harness/a.md', "echo x > ''harness/a.md", 'cp a $(echo)harness/x', 'echo x > ${X}harness/a', 'echo x > `echo`harness/a',
+    // round 2: redirects, escapes, substitutions between writer and target; spaced targets
+    'cp a 2>&1 harness/x', 'echo x | tee 2>&1 harness/x', 'cp a >&2 harness/x', 'cp a &>/dev/null harness/x', 'cp a 1>/dev/null 2>&1 e2e/x',
+    String.raw`echo x | tee \; harness/x`, String.raw`cp a\; harness/x`, 'cp $(ls a|head -1) harness/x', 'cp $(echo a;echo b) harness/x',
+    'cp `ls a|head -1` harness/x', 'echo x > $(echo )harness/a', 'echo x > `echo `harness/a', `echo x > "$(printf '')"harness/a`,
+    // round 3: arrows the shell runs, >&N/path, word-glued .claude
+    'echo "$(echo x ->harness/a)"', 'echo "`echo x ->harness/a`"', String.raw`echo \"x ->harness/a \"`, 'true # "\necho x ->harness/a # "',
+    'echo x >&0/../harness/a', 'cp a $X.claude/y', 'echo x >$1.claude/settings.json',
+  ]) {
+    assert.strictEqual(sh(c).status, 2, c);
+  }
+});
