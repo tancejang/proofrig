@@ -110,9 +110,17 @@ function caseWithE2e() {
     return;
   }
 
-  check('PreToolUse blocks edit to harness/', runHooks(dir, settings, 'PreToolUse', edit(dir, 'harness/harness.config.md')));
-  check('PROOFRIG_UNLOCK=1 lets a human edit harness/', !runHooks(dir, settings, 'PreToolUse',
-    edit(dir, 'harness/harness.config.md'), { PROOFRIG_UNLOCK: '1' }));
+  // Zero restart: the main session (no agent_type) edits harness/ directly; subagents are scoped.
+  check('main session may edit harness/ with no unlock step', !runHooks(dir, settings, 'PreToolUse', edit(dir, 'harness/harness.config.md')));
+  check('a non-owning subagent is blocked from harness/', runHooks(dir, settings, 'PreToolUse',
+    { ...edit(dir, 'harness/harness.config.md'), agent_type: 'general-purpose', agent_id: 'e2e-sub' }));
+  const generated = ['CLAUDE.md', 'harness', '.claude'].flatMap((p) => {
+    const abs = path.join(dir, p);
+    if (!fs.existsSync(abs)) return [];
+    return fs.statSync(abs).isDirectory() ? fs.readdirSync(abs, { recursive: true }).map((f) => path.join(abs, f)) : [abs];
+  }).filter((f) => fs.statSync(f).isFile());
+  const unlockRefs = generated.filter((f) => fs.readFileSync(f, 'utf8').includes('PROOFRIG_UNLOCK'));
+  check('generated harness has no PROOFRIG_UNLOCK step', !unlockRefs.length, unlockRefs.map((f) => path.relative(dir, f)).join(', '));
   check('PreToolUse allows edit to src/',!runHooks(dir, settings, 'PreToolUse', edit(dir, 'src/add.js')));
 
   fs.mkdirSync(path.join(dir, 'specs/demo/checks'), { recursive: true });
