@@ -58,15 +58,17 @@ function checkShell(cmd) {
     [/\b(rm|del|mv|Remove-Item|Move-Item)\b.*\.locked\b/, 'removing a spec lock'],
   ];
   for (const [re, what] of always) if (re.test(cmd)) block(`${what} is not allowed`);
-  // A protected path token: optional quote, optional prefix ending in / or \ (quotes allowed, as in
-  // "$(pwd)"/harness), then the name as a whole path component (so specs/demo-harness/ is not
-  // protected). Case-insensitive (Windows FS).
-  const PROT = String.raw`['"]?(?:[^\s;&|<>]*[\/\\])?(?:harness|\.claude|e2e)(?=[\/\\\s'";&|)]|$)`;
+  // A protected path token: any non-separator prefix, then the name ending a path component. The name
+  // is protected unless glued to a word char or '-' (so specs/demo-harness/ is not); quote, $(...),
+  // ${X} and backtick prefixes still count ("$(pwd)"/harness, ""harness). Case-insensitive (Windows FS).
+  const PROT = String.raw`[^\s;&|<>]*?(?<![\w-])(?:harness|\.claude|e2e)(?=[\/\\\s'";&|)]|$)`;
   // Redirect into it: >, >>, >|, >&, &>, N>. The targets of 2>&1 and 2>/dev/null never match PROT.
   const redirect = new RegExp(String.raw`>[>|&]?\s*${PROT}`, 'i');
-  // A writing command with a protected path argument later in the same ; & | segment.
+  // A writing command with a protected path argument later in the same ; & | segment (separators
+  // inside quotes do not split: sed -i 's/a/b/;s/c/d/' harness/x is one segment).
   const writer = new RegExp(String.raw`\b(?:tee|cp|mv|(?:Set|Add)-Content|Out-File|(?:Copy|Move)-Item|sed\b(?=.*\s-(?:[a-z]*i|-in-place)))\b.*[\s=:]${PROT}`, 'i');
-  if (agent && (redirect.test(cmd) || cmd.split(/[;&|\n]/).some((s) => writer.test(s)))) {
+  const segs = cmd.replace(/'[^']*'|"[^"]*"/g, (q) => q.replace(/[;&|\n]/g, ' ')).split(/[;&|\n]/);
+  if (agent && (redirect.test(cmd) || segs.some((s) => writer.test(s)))) {
     block('subagents may not write to harness/, .claude/, or e2e/ by shell; use Edit or Write');
   }
   if (READ_ONLY.has(agent)) {
