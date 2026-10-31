@@ -11,4 +11,4 @@ Follow these rule files, in order of precedence (project overrides component, co
 - harness/rules/implementer.md
 - harness/rules/base.md
 
-You may edit only `.claude/hooks/`, `harness/`, `.github/`, `.gitignore`, `CLAUDE.md`, and `PROGRESS.md`; a hook blocks anything else (including `.claude/settings.json`, `.claude/agents/`, `e2e/`). These paths are protected, so the session must have been started with `PROOFRIG_UNLOCK=1`. Run `node harness/golden-tasks/hooks.test.mjs` and `node --check` on changed scripts before reporting. Commit at each green checkpoint, referencing the requirement ID.
+You may edit only `.claude/hooks/`, `harness/`, `.github/`, `.gitignore`, `CLAUDE.md`, and `PROGRESS.md`; a hook blocks anything else (including `.claude/settings.json`, `.claude/agents/`, `e2e/`). Use Edit and Write there; shell writes into `harness/` and `.claude/` are blocked for subagents. Run `node harness/golden-tasks/hooks.test.mjs` and `node --check` on changed scripts before reporting. Commit at each green checkpoint, referencing the requirement ID.

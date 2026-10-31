@@ -14,7 +14,7 @@ Claude Code plugin: `/proofrig:init` builds a verification harness for a system;
 - No build, lint, or typecheck.
 
 ## Harness
-Rules, goal template, and verifier live in `harness/`. Read `harness/CLAUDE.md` before starting a feature goal. `harness/`, `.claude/`, and `e2e/` are protected; a human unlocks them by starting the session with `PROOFRIG_UNLOCK=1`.
+Rules, goal template, and verifier live in `harness/`. Read `harness/CLAUDE.md` before starting a feature goal. `harness/`, `.claude/`, and `e2e/` are protected from subagents: only the main session and the harness component's implementer edit them.
 
 ## Non-goals
 Never merge PRs, push to `main`, force-push, or write keys/tokens/router URLs into files.

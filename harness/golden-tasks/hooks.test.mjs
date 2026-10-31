@@ -17,7 +17,7 @@ function hook(name, payload, env = {}) {
   const r = spawnSync(process.execPath, [path.join(root, '.claude/hooks', name)], {
     cwd: root, encoding: 'utf8', timeout: 180_000,
     input: JSON.stringify({ session_id: `golden-${process.pid}-${Math.random()}`, cwd: root, ...payload }),
-    env: { ...process.env, PROOFRIG_UNLOCK: '', CLAUDE_PROJECT_DIR: root, ...env },
+    env: { ...process.env, CLAUDE_PROJECT_DIR: root, ...env },
   });
   let out = {};
   try {
@@ -29,8 +29,10 @@ const edit = (file, extra = {}) => hook('guard.mjs', { tool_name: 'Edit', tool_i
 const sh = (command, extra = {}) => hook('guard.mjs', { tool_name: 'Bash', tool_input: { command }, ...extra });
 
 test('protected paths', () => {
-  for (const f of ['harness/rules/base.md', '.claude/settings.json', 'e2e/run.mjs']) assert.ok(edit(f).blocked, f);
-  assert.ok(!hook('guard.mjs', { tool_name: 'Edit', tool_input: { file_path: path.join(root, 'harness/rules/base.md') } }, { PROOFRIG_UNLOCK: '1' }).blocked, 'unlock');
+  for (const f of ['harness/rules/base.md', '.claude/settings.json', 'e2e/run.mjs']) {
+    assert.ok(!edit(f).blocked, `main session: ${f}`);
+    assert.ok(edit(f, { agent_type: 'general-purpose' }).blocked, `other subagent: ${f}`);
+  }
   assert.ok(edit('.git/config').blocked, '.git');
   assert.ok(edit('../outside.txt').blocked, 'outside project');
   assert.ok(!edit('plugins/proofrig/skills/init/SKILL.md').blocked, 'component path');
@@ -40,15 +42,19 @@ test('component scoping and read-only agents', () => {
   assert.ok(edit('CLAUDE.md', { agent_type: 'implementer-plugin' }).blocked, 'out-of-component');
   assert.ok(!edit('README.md', { agent_type: 'implementer-plugin' }).blocked, 'in-component');
   assert.ok(edit('.claude/hooks/guard.mjs', { agent_type: 'implementer-plugin' }).blocked, 'plugin implementer, harness path');
-  const unlocked = (file, agent_type) => hook('guard.mjs', { tool_name: 'Edit', agent_type, tool_input: { file_path: path.join(root, file) } }, { PROOFRIG_UNLOCK: '1' }).blocked;
+  const as = (agent_type, f) => edit(f, { agent_type }).blocked;
   for (const f of ['.claude/hooks/guard.mjs', 'harness/failure-log.md', '.github/workflows/ci.yml', '.gitignore', 'CLAUDE.md', 'PROGRESS.md']) {
-    assert.ok(!unlocked(f, 'implementer-harness'), `harness implementer: ${f}`);
+    assert.ok(!as('implementer-harness', f), `harness implementer: ${f}`);
   }
   for (const f of ['.claude/settings.json', '.claude/agents/verifier.md', 'e2e/run.mjs', 'README.md', 'plugins/proofrig/skills/init/SKILL.md']) {
-    assert.ok(unlocked(f, 'implementer-harness'), `harness implementer blocked: ${f}`);
+    assert.ok(as('implementer-harness', f), `harness implementer blocked: ${f}`);
   }
-  for (const f of ['README.md', '.claude/hooks/guard.mjs']) assert.ok(!unlocked(f, 'simplifier'), `simplifier: ${f}`);
-  assert.ok(unlocked('.claude/settings.json', 'simplifier'), 'simplifier blocked: settings.json');
+  for (const f of ['README.md', '.claude/hooks/guard.mjs']) assert.ok(!as('simplifier', f), `simplifier: ${f}`);
+  assert.ok(as('simplifier', '.claude/settings.json'), 'simplifier blocked: settings.json');
+  assert.ok(!sh('echo x > harness/a.md').blocked, 'main session shell write');
+  for (const a of ['implementer-harness', 'implementer-plugin', 'general-purpose']) {
+    assert.ok(sh('echo x > harness/a.md', { agent_type: a }).blocked, `${a} shell write`);
+  }
   assert.ok(edit('README.md', { agent_type: 'verifier' }).blocked, 'verifier edit');
   assert.ok(sh('git commit -m x', { agent_type: 'verifier' }).blocked, 'verifier commit');
   assert.ok(sh('echo x > notes.txt', { agent_type: 'verifier' }).blocked, 'verifier redirect');
@@ -66,7 +72,7 @@ test('locked specs', () => {
 
 test('forbidden commands', () => {
   for (const c of ['git push --force origin x', 'git push -f origin x', 'git push origin main', 'gh pr merge 1',
-    'git reset --hard HEAD~1', 'rm -rf plugins', 'git commit --no-verify -m x', 'cat .env', 'echo x > harness/a.md']) {
+    'git reset --hard HEAD~1', 'rm -rf plugins', 'git commit --no-verify -m x', 'cat .env']) {
     assert.ok(sh(c).blocked, c);
   }
   for (const c of ['git push -u origin feature-main', 'node e2e/run.mjs > out.txt', 'git status']) assert.ok(!sh(c).blocked, c);

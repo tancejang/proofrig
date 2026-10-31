@@ -20,6 +20,6 @@ Done when ALL are true, with command output shown as evidence:
 - Manual-review items are listed in the final report.
 
 Do not: edit outside the current slice's component paths (harness/components.md), touch .claude/settings.json, .claude/agents/, or e2e/, weaken or delete existing checks, merge PRs, push to main, force-push.
-Stop and report (do not guess) when: same failure 3 times, spec ambiguity, a contract change not in the spec, or any need to modify a protected path outside the slice's component or an existing check.
+Stop and report (do not guess) when: same failure 3 times, spec ambiguity, a contract change not in the spec, any need to modify a protected path outside the slice's component or an existing check, or a slice diff (`git diff --stat`) that touches a file under e2e/, .claude/, or harness/golden-tasks/ that no slice in SPEC.md names.
 Final report: use harness/report-template.md.
 ```

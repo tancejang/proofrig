@@ -5,10 +5,10 @@ import path from 'node:path';
 
 const req = JSON.parse(fs.readFileSync(0, 'utf8'));
 const root = process.env.CLAUDE_PROJECT_DIR || req.cwd;
-const unlocked = process.env.PROOFRIG_UNLOCK === '1';
 const agent = req.agent_type ?? '';
 const input = req.tool_input ?? {};
 
+// Only the main session and the owning component's implementer may write here.
 const PROTECTED = /^(harness|\.claude|e2e)(\/|$)/;
 // Component paths per writing agent (harness/components.md). PROGRESS.md is the run's notes file.
 const PLUGIN = /^(plugins\/|\.claude-plugin\/|README\.md$|PROGRESS\.md$)/;
@@ -33,13 +33,14 @@ function checkPath(file) {
   if (spec && fs.existsSync(path.join(root, 'specs', spec[1], '.locked'))) {
     block(`specs/${spec[1]} is locked for this run; stop and report if the spec or a check is wrong`);
   }
-  if (PROTECTED.test(p) && !unlocked) block(`${p} is protected (harness/, .claude/, e2e/); a human must start the session with PROOFRIG_UNLOCK=1`);
   if (READ_ONLY.has(agent)) block(`${agent} is read-only`);
-  if (SCOPES[agent] && !SCOPES[agent].some((re) => re.test(p))) block(`${agent} may edit only its component's paths (harness/components.md)`);
+  const scope = SCOPES[agent];
+  if (scope && !scope.some((re) => re.test(p))) block(`${agent} may edit only its component's paths (harness/components.md)`);
+  if (agent && !scope && PROTECTED.test(p)) block(`${p} is protected (harness/, .claude/, e2e/); only the main session or the owning implementer may edit it`);
 }
 
 // ponytail: pattern-based shell checks, a creative command can slip past; the verifier's
-// diff review (REV-6) is the backstop. Upgrade path: sandbox or deny Bash writes entirely.
+// diff review (REV-6, REV-9) is the backstop. Upgrade path: sandbox or deny Bash writes entirely.
 function checkShell(cmd) {
   const always = [
     [/git\s+push\b.*(--force\b|--force-with-lease|\s-f\b|\s\+\S)/, 'force-push'],
@@ -53,8 +54,8 @@ function checkShell(cmd) {
   ];
   for (const [re, what] of always) if (re.test(cmd)) block(`${what} is not allowed`);
   const writes = /(>|\btee\b|\bsed\s+-i|\bcp\b|\bmv\b|Set-Content|Out-File|Add-Content|Copy-Item|Move-Item)/;
-  if (!unlocked && new RegExp(`${writes.source}.*\\b(harness|\\.claude|e2e)/`).test(cmd)) {
-    block('shell writes to harness/, .claude/, or e2e/ need PROOFRIG_UNLOCK=1');
+  if (agent && new RegExp(`${writes.source}.*\\b(harness|\\.claude|e2e)/`).test(cmd)) {
+    block('subagents may not write to harness/, .claude/, or e2e/ by shell; use Edit or Write');
   }
   if (READ_ONLY.has(agent)) {
     const mutating = /(^|[;&|]\s*)git\s+(commit|push|checkout|switch|reset|rebase|merge|stash|add|rm|restore)\b|(?<![0-9&])>(?!&)|\btee\b|\bsed\s+-i|\b(rm|mv|cp)\s|Set-Content|Out-File|New-Item|Remove-Item/;
