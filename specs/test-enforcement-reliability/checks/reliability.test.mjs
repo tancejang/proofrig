@@ -148,7 +148,7 @@ test('R12 rubric: B1-B5 pass and the score is at least 8.5 with no base regressi
   assert.strictEqual(all.status, 0, all.stdout);
 });
 
-test('R14 guard blocks the fixed probe list of write forms found in verifier rounds 1-3', () => {
+test('R14 guard blocks the fixed probe list of write forms found in verifier rounds 1-4', () => {
   for (const c of [
     // round 1: quoted separators, glued prefixes
     "sed -i 's/a/b/;s/c/d/' harness/CLAUDE.md", 'cp "a;b" harness/x', 'echo x | tee "a|b" e2e/x',
@@ -160,6 +160,10 @@ test('R14 guard blocks the fixed probe list of write forms found in verifier rou
     // round 3: arrows the shell runs, >&N/path, word-glued .claude
     'echo "$(echo x ->harness/a)"', 'echo "`echo x ->harness/a`"', String.raw`echo \"x ->harness/a \"`, 'true # "\necho x ->harness/a # "',
     'echo x >&0/../harness/a', 'cp a $X.claude/y', 'echo x >$1.claude/settings.json',
+    // round 4: names after a non-path dash, quote spans that straddle a real quote
+    'echo x > ${X:-harness/a}', 'cp a ${X-harness/a}', 'cp a ${X:-e2e/a}', 'cp a $(echo -harness/a | cut -c2-)',
+    String.raw`echo "\"'" ->harness/a "'"`, `echo "$'" ->harness/a "'"`, 'echo "`\'" ->e2e/a "\'"', String.raw`echo $'\'' ->harness/a 'x'`,
+    `echo "x\n'" ->harness/a "'"`,
   ]) {
     assert.strictEqual(sh(c).status, 2, c);
   }
