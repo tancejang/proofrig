@@ -235,7 +235,7 @@ claude plugin validate plugins/proofrig     # plugin.json and skill frontmatter
 node harness/golden-tasks/hooks.test.mjs    # golden tests for .claude/hooks/guard.mjs and stop.mjs
 ```
 
-The Stop hook also runs `claude plugin validate .` and `node --check` on the scripts in `e2e/`, `.claude/hooks/`, and `harness/golden-tasks/` before every turn ends.
+The Stop hook also runs `claude plugin validate --strict .`, `claude plugin validate --strict plugins/proofrig`, and `node --check` on the scripts in `e2e/`, `.claude/hooks/`, and `harness/golden-tasks/` before every turn ends.
 
 `harness/`, `.claude/`, and `e2e/` are protected from subagents by `.claude/hooks/guard.mjs`: only the main session and the harness component's implementer may edit them, with no restart or unlock step (earlier versions needed a session started with `PROOFRIG_UNLOCK=1`; this repo no longer reads it). The verifier's REV-9 flags any change to `e2e/`, `.claude/`, or `harness/golden-tasks/` that the spec doesn't name. Nothing edits `.git/` or a locked spec.
 
