@@ -23,6 +23,7 @@ Flow: Spec -> Plan -> Build -> Simplify -> Verify -> Fix loop -> Stacked PRs -> 
 - **PreToolUse `.claude/hooks/guard.mjs`** (Edit, Write, MultiEdit, NotebookEdit, Bash, PowerShell). Exit 2 blocks.
   - `harness/`, `.claude/`, `e2e/` are protected: only the main session and the owning component's implementer may edit them. No subagent may write there by shell.
   - `.git/` and paths outside the project: always blocked.
+  - Empty, whitespace-only, invalid-JSON, or non-object hook input: the guard fails closed (exit 2 with a `proofrig guard:` message).
   - `specs/<f>/SPEC.md`, `specs/<f>/checks/`, and `.locked` itself are frozen while `specs/<f>/.locked` exists, for every agent including the main session; removing a lock by shell is blocked.
   - `implementer-plugin` may edit only `plugins/`, `.claude-plugin/`, `README.md`, `PROGRESS.md`; `implementer-harness` only `.claude/hooks/`, `harness/`, `.github/`, `.gitignore`, `CLAUDE.md`, `PROGRESS.md`; `simplifier` either set. No agent may edit `.claude/settings.json`, `.claude/agents/`, or `e2e/`. `verifier` and `planner` may not write at all (shell included, by pattern).
   - Always blocked: force-push, push to `main`, `gh pr merge`, `git reset --hard`, `--no-verify`, recursive deletes, `.env` access.

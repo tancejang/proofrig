@@ -3,7 +3,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const req = JSON.parse(fs.readFileSync(0, 'utf8'));
+// Fail closed: Claude Code treats a crash (exit 1) as non-blocking.
+let req;
+try {
+  req = JSON.parse(fs.readFileSync(0, 'utf8'));
+} catch {}
+if (!req || typeof req !== 'object' || Array.isArray(req)) block('hook input is empty or not a JSON object; failing closed');
 const root = process.env.CLAUDE_PROJECT_DIR || req.cwd;
 const agent = req.agent_type ?? '';
 const input = req.tool_input ?? {};
@@ -53,8 +58,18 @@ function checkShell(cmd) {
     [/\b(rm|del|mv|Remove-Item|Move-Item)\b.*\.locked\b/, 'removing a spec lock'],
   ];
   for (const [re, what] of always) if (re.test(cmd)) block(`${what} is not allowed`);
-  const writes = /(>|\btee\b|\bsed\s+-i|\bcp\b|\bmv\b|Set-Content|Out-File|Add-Content|Copy-Item|Move-Item)/;
-  if (agent && new RegExp(`${writes.source}.*\\b(harness|\\.claude|e2e)/`).test(cmd)) {
+  // Old rule (any write operator anywhere before a protected path), minus exactly what R1 frees:
+  // fd dups only when the digits end the word (2>&1, not >&1/../harness), null sinks (2>/dev/null),
+  // arrows inside quotes only when the command has no backslash, $, backtick, or newline (then bash
+  // quote pairing equals leftmost regex pairing, so a regex-paired quote is a real quote), and names
+  // glued to a word char or to a '-' that follows a word char or '.' (specs/demo-harness/; not
+  // ${X-harness/a}, ${X:-harness/a}, or -harness/a). Only the '-' rule frees .claude.
+  let masked = cmd.replace(/\d*>&\d+(?=[\s;&|)]|$)|\d*>\s*\/dev\/null\b/g, ' ');
+  if (!/[\\`$\n]/.test(cmd)) masked = masked.replace(/'[^']*'|"[^"]*"/g, (q) => q.replace(/->|→/g, '  '));
+  const writes = String.raw`(>|\btee\b|\bsed\b(?=[\s\S]*\s-(?:[a-z]*i|-in-place))|\bcp\b|\bmv\b|Set-Content|Out-File|Add-Content|Copy-Item|Move-Item)`;
+  const free = String.raw`(?<!(?<!\$\{\w*)[\w.]-)`;
+  const prot = String.raw`(?:(?<!\w)${free}(?:harness|e2e)|${free}\.claude)([\/\\\s'";&|)]|$)`;
+  if (agent && new RegExp(`${writes}[\\s\\S]*${prot}`, 'i').test(masked)) {
     block('subagents may not write to harness/, .claude/, or e2e/ by shell; use Edit or Write');
   }
   if (READ_ONLY.has(agent)) {
