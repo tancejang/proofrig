@@ -70,7 +70,8 @@ test('subagent shell writes: reads with 2>&1 or quoted > allowed, nearest write 
     'echo hi>harness/a.md', 'echo x &> harness/z', 'echo "->" > harness/a.md', 'cat a | tee -a .claude/x', 'cp -r a ./harness/',
     'printf x >| e2e/y', 'sed -i s/a/b/ .claude/hooks/guard.mjs', 'Set-Content harness\\a.md x', 'echo x > HARNESS/a.md',
     'cp a "$(pwd)"/harness/x', "sed -i 's/a/b/;s/c/d/' harness/x", 'cp "a;b" harness/x', 'echo x > ""harness/a.md',
-    'cp a $(echo)harness/x']) {
+    'cp a $(echo)harness/x', 'cp a 2>&1 harness/x', 'cp a &>/dev/null harness/x', 'echo x | tee \\; harness/x',
+    'cp $(ls a|head -1) harness/x', 'echo x > $(echo )harness/a']) {
     assert.ok(sub(c), `blocked: ${c}`);
   }
 });

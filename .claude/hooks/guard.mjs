@@ -58,17 +58,14 @@ function checkShell(cmd) {
     [/\b(rm|del|mv|Remove-Item|Move-Item)\b.*\.locked\b/, 'removing a spec lock'],
   ];
   for (const [re, what] of always) if (re.test(cmd)) block(`${what} is not allowed`);
-  // A protected path token: any non-separator prefix, then the name ending a path component. The name
-  // is protected unless glued to a word char or '-' (so specs/demo-harness/ is not); quote, $(...),
-  // ${X} and backtick prefixes still count ("$(pwd)"/harness, ""harness). Case-insensitive (Windows FS).
-  const PROT = String.raw`[^\s;&|<>]*?(?<![\w-])(?:harness|\.claude|e2e)(?=[\/\\\s'";&|)]|$)`;
-  // Redirect into it: >, >>, >|, >&, &>, N>. The targets of 2>&1 and 2>/dev/null never match PROT.
-  const redirect = new RegExp(String.raw`>[>|&]?\s*${PROT}`, 'i');
-  // A writing command with a protected path argument later in the same ; & | segment (separators
-  // inside quotes do not split: sed -i 's/a/b/;s/c/d/' harness/x is one segment).
-  const writer = new RegExp(String.raw`\b(?:tee|cp|mv|(?:Set|Add)-Content|Out-File|(?:Copy|Move)-Item|sed\b(?=.*\s-(?:[a-z]*i|-in-place)))\b.*[\s=:]${PROT}`, 'i');
-  const segs = cmd.replace(/'[^']*'|"[^"]*"/g, (q) => q.replace(/[;&|\n]/g, ' ')).split(/[;&|\n]/);
-  if (agent && (redirect.test(cmd) || segs.some((s) => writer.test(s)))) {
+  // Old rule (any write operator anywhere before a protected path), minus exactly what R1 frees:
+  // fd dups (2>&1), null sinks (2>/dev/null), arrows inside quotes, and names glued to '-' (specs/x-harness/).
+  const masked = cmd
+    .replace(/\d*>&\d+|\d*>\s*\/dev\/null\b/g, ' ')
+    .replace(/'[^']*'|"[^"]*"/g, (q) => q.replace(/->|→/g, '  '));
+  const writes = String.raw`(>|\btee\b|\bsed\b(?=[\s\S]*\s-(?:[a-z]*i|-in-place))|\bcp\b|\bmv\b|Set-Content|Out-File|Add-Content|Copy-Item|Move-Item)`;
+  const prot = String.raw`(?<![\w-])(harness|\.claude|e2e)([\/\\\s'";&|)]|$)`;
+  if (agent && new RegExp(`${writes}[\\s\\S]*${prot}`, 'i').test(masked)) {
     block('subagents may not write to harness/, .claude/, or e2e/ by shell; use Edit or Write');
   }
   if (READ_ONLY.has(agent)) {
