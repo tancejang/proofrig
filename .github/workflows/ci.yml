@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      DISABLE_AUTOUPDATER: 1
+    steps:
+      - name: Keep LF line endings (Windows runners default to autocrlf=true)
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install claude 2.1.312 (native installer)
+        if: runner.os != 'Windows'
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash -s 2.1.312
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install claude 2.1.312 (native installer, Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & ([scriptblock]::Create((irm https://claude.ai/install.ps1))) 2.1.312
+          Add-Content $env:GITHUB_PATH "$env:USERPROFILE\.local\bin"
+      - run: claude --version
+      - name: node --check on every .mjs in e2e, .claude/hooks, harness/golden-tasks
+        run: for f in e2e/*.mjs .claude/hooks/*.mjs harness/golden-tasks/*.mjs; do node --check "$f"; done
+      - run: claude plugin validate --strict .
+      - run: claude plugin validate --strict plugins/proofrig
+      - run: node harness/golden-tasks/hooks.test.mjs
