@@ -61,6 +61,7 @@ Runs after build, before verify. Goal: smaller and clearer without changing beha
 - **REV-6** Verify no existing check, protected file, or CI config was weakened or modified without an explicit spec reason. *Reason: catches the cheat of editing the test.*
 - **REV-7** Verify each slice is independently green and within the size target. *Reason: stacked PRs must each be mergeable.*
 - **REV-8** Output a verdict per requirement (pass, fail, manual-review) and a list of violations. Do not fix anything. *Reason: separation of builder and judge.*
+- **REV-9** Run `git diff --stat <slice base>...HEAD`. Any protected or grading file (hooks, e2e checks, golden tasks, `.claude/settings.json`) that `SPEC.md` does not name is a violation, whoever changed it. *Reason: the main session can edit protected paths; this is the tripwire.*
 
 ## project.md
 

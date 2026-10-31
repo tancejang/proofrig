@@ -25,7 +25,7 @@ proofrig builds that harness for your system, and prepares each feature so one p
 
 | Command | When | What it does |
 |---|---|---|
-| `/proofrig:init` | Once per system (re-run in update mode when it changes) | Scans your repos, proposes a complete default harness, asks only about what you want to change or it could not infer, generates it, and proves it with a dry run |
+| `/proofrig:init` | Once per system (re-run in update mode when it changes) | Scans your repos, proposes a complete default harness, asks only about what you want to change or it could not infer, generates it, and after one reply from you ("go") proves it with a dry run, all in the same session with no restart |
 | `/proofrig:ship` | Every feature | Grills you on the feature, writes `SPEC.md` with a runnable check per requirement and a stacked-PR slice plan, confirms each check fails before the work exists, and prints a ready-to-paste `/goal` line |
 
 ## Quick start

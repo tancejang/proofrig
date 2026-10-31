@@ -202,7 +202,7 @@ Done when ALL are true, with command output shown as evidence:
 - Manual-review items are listed in the final report.
 
 Do not: touch protected paths, edit files outside the slice's component, weaken or delete existing checks, overwrite baselines or reference images, merge PRs, push to <protected branches>.
-Stop and report (do not guess) when: same failure 3 times, spec ambiguity, a contract change not in the spec, a migration or destructive operation, or any need to modify a protected path or existing check.
+Stop and report (do not guess) when: same failure 3 times, spec ambiguity, a contract change not in the spec, a migration or destructive operation, any need to modify a protected path or existing check, or a slice diff (`git diff --stat`) that touches a protected or grading file (hooks, e2e, golden tasks, settings) that SPEC.md does not name.
 Final report: use harness/report-template.md.
 ```
 

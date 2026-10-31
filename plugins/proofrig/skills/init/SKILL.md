@@ -24,7 +24,7 @@ The default flow it sets up (the user may reshape it in Phase 2):
 ## Mode
 
 - No `harness/` directory at the system root: **init mode**, run all phases.
-- `harness/` exists: **update mode**. Read `harness/harness.config.md` (do not re-ask recorded decisions), re-scan, diff against the harness, and propose only the changes (new repo or component, changed command, stale rule, new rule from `harness/failure-log.md`). Do not regenerate files the user has edited. The harness hooks protect `harness/` and `.claude/`: if `PROOFRIG_UNLOCK=1` is not set, stop and ask the user to restart the session with it before applying changes, and to restart without it afterwards.
+- `harness/` exists: **update mode**. Read `harness/harness.config.md` (do not re-ask recorded decisions), re-scan, diff against the harness, and propose only the changes (new repo or component, changed command, stale rule, new rule from `harness/failure-log.md`). Do not regenerate files the user has edited. Update mode applies its changes in the same session: the harness hooks let the main session edit `harness/` and `.claude/`, so it needs no env var and no new session. If an older harness's hook still blocks an edit, stop and show the user the hook's message; do not work around it.
 
 ## Phase 1: Scan (no questions yet)
 
@@ -128,11 +128,12 @@ Write `.claude/settings.json` with permissions and hooks derived from the interv
 - Permissions: allow only the commands the harness needs; deny prod access, secrets files, force-push, push to protected branches, destructive DB commands.
 - **Hook commands:** write each one as `node "$CLAUDE_PROJECT_DIR/.claude/hooks/<name>.mjs"` (or the same form with the system's own runtime), escaping the inner quotes as `\"` in `settings.json`. Use forward slashes, and use no tools a platform may lack (for example `jq`) in the command or the script. Claude Code runs hooks through Git Bash on Windows, so this form works there and on POSIX.
 - **Stop hook:** run tests, lint, typecheck, and mechanical checks; fail loudly with output so the run cannot end on red.
-- **PreToolUse hook:** block edits to protected paths (including `harness/`, CI config, lockfiles unless intended) and dangerous commands. Also block edits to `specs/<feature>/checks/` and `SPEC.md` whenever `specs/<feature>/.locked` exists, and block edits to `harness/visual/baselines/` and reference images while a run is locked. `/proofrig:ship` creates the lock file when the user approves the spec, so checks are writable while being authored and frozen during the `/goal` run.
+- **PreToolUse hook:** block subagent edits to protected paths (including `harness/`, `.claude/`, CI config, lockfiles unless intended), and dangerous commands for everyone. Also block edits to `specs/<feature>/checks/` and `SPEC.md` whenever `specs/<feature>/.locked` exists, and block edits to `harness/visual/baselines/` and reference images while a run is locked. `/proofrig:ship` creates the lock file when the user approves the spec, so checks are writable while being authored and frozen during the `/goal` run.
 - **Fail closed:** the PreToolUse hook blocks (exit 2) on empty or unparsable input, for example stdin that is not JSON. Claude Code treats any other non-zero exit, such as an uncaught parse error, as a non-blocking error and lets the tool call through.
-- **Component path scoping:** an implementer may edit only the paths its component owns (plus the files of its own slice's tests). Edits outside are blocked and reported.
-- **Write `.claude/settings.json` last**, after every other generated file. Its hooks take effect immediately in the current session and will block any further writes to `harness/` and `.claude/`.
-- **Human unlock:** the protected-path hook lets edits to `harness/` and `.claude/` through only when the session was started with `PROOFRIG_UNLOCK=1` in its environment. An agent cannot set its parent session's environment, so only a human can unlock.
+- **Scope by agent:** the hook input carries `agent_type` inside a subagent and none in the main session. With no `agent_type` (main session), allow edits to protected paths, so the user and the orchestrator can change `harness/` and `.claude/` in the same session.
+- **Component path scoping:** an implementer may edit only the paths its component owns (plus the files of its own slice's tests); any other subagent may not edit protected paths. Edits outside are blocked and reported. A subagent never writes protected paths by shell: block shell write patterns (`>`, `tee`, `sed -i`, `cp`, `mv`) that target them.
+- Locked specs, visual baselines during a locked run, `.git/`, unparsable input, and forbidden commands stay blocked for everyone, the main session included.
+- **Write `.claude/settings.json` last**, after every other generated file. Its hooks take effect immediately in the current session, so they must never enforce a half-written harness.
 - Document in `harness/CLAUDE.md` what each hook does and how to adjust it.
 
 Hooks and permissions are the enforcement layer; do not rely on prose for anything that must never happen.
@@ -141,9 +142,11 @@ Hooks and permissions are the enforcement layer; do not rely on prose for anythi
 
 Prove the harness works before declaring success:
 
+New or changed agent files (`.claude/agents/*.md`) load on the user's next message, so they cannot be spawned in the same turn that wrote them. If this run added or changed any (always true in init mode), end the turn after Phase 6 with "Harness written; reply go to run the dry run (Phase 7)." and run Phase 7 on that reply. Otherwise continue straight on.
+
 1. Make a trivial change through the full flow (plan, build, simplify, verify) and confirm the e2e check runs and passes.
 2. Make a deliberately broken change (golden task) and confirm the verifier or the checks catch it.
-3. Confirm a protected-path edit, an out-of-component edit, a forbidden command, and empty input to the PreToolUse hook are blocked, and a read-only command on a protected path (for example `ls 2>&1; cat harness/CLAUDE.md`, which catches write patterns that match the `>` in `2>&1`) is allowed.
+3. Confirm a subagent's protected-path edit (hook input with an `agent_type`), an out-of-component edit, a forbidden command, and empty input to the PreToolUse hook are blocked, that a main-session edit to `harness/` (no `agent_type`) is allowed, and that a read-only command on a protected path (for example `ls 2>&1; cat harness/CLAUDE.md`, which catches write patterns that match the `>` in `2>&1`) is allowed.
 4. Confirm the stuck rule triggers a stop-and-report.
 5. **Routing test.** For each component, confirm a slice is routed to that component's implementer and that implementer can build, test, and lint its component.
 6. **Visual test (if UI).** Capture a screenshot with the visual check, confirm it passes against the baseline, introduce a deliberate visual regression and confirm it is caught, and confirm an attempt to overwrite a baseline during a locked run is blocked. Run the capture twice and confirm identical results; if it flakes, fix determinism before continuing.
