@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3 - 2026-11-01
+
+- `/proofrig:init`: the generated harness works in the session that ran init, with no `PROOFRIG_UNLOCK` and no restart. The PreToolUse hook scopes protected paths by agent: the main session may edit `harness/` and `.claude/`; a subagent may edit only its component's paths and never writes protected paths by shell. Locked specs, `.git/`, bad hook input, and forbidden commands stay blocked for everyone. Update mode applies its changes in the same session. When init adds or changes agents, it pauses for one reply ("go") before the Phase 7 dry run, because new agents load on the next message.
+- Base rules add REV-9 (the verifier flags any protected or grading file a slice changes that `SPEC.md` does not name), and the generated goal template's stop condition matches it.
+- **Upgrading an existing harness:** its old guard still requires the unlock. Start one last session with `PROOFRIG_UNLOCK=1` and run `/proofrig:init` in update mode; after that, no unlock or restart is needed.
+- This repo's own harness: a precise, fail-closed shell-write guard, strict `claude plugin validate` in the Stop hook, and CI on Ubuntu and Windows.
+
 ## 0.1.2 - 2026-10-29
 
 - `/proofrig:ship`: checks for an existing `specs/<feature>/.locked` (stop) or unlocked `SPEC.md` (resume, do not overwrite) before grilling, asks before the fail-first run of a slow or costly check, writes specs to `specs/<feature>/SPEC.md`, and points to the Visual check spec as `../init/references/templates.md`.
