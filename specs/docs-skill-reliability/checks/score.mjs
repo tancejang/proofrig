@@ -60,8 +60,12 @@ const ITEMS = [
     ok: () => /^## Commands/m.test(read('CLAUDE.md')) && read('CLAUDE.md').includes('hooks.test.mjs') },
   { id: 'A9', dim: 2, w: 3, tag: 'A', what: 'README "Developing proofrig" section: validate, hook tests, PROOFRIG_UNLOCK=1',
     ok: () => { const s = section(read('README.md'), /Develop/); return s.includes('claude plugin validate .') && s.includes('node harness/golden-tasks/hooks.test.mjs') && s.includes('PROOFRIG_UNLOCK=1'); } },
-  { id: 'A15', dim: 2, w: 2, tag: 'A', what: 'CHANGELOG has 0.1.2, 0.1.1, 0.1.0 (newest first) and matches plugin.json version',
-    ok: () => { const v = [...read(CHANGELOG).matchAll(/^## \[?(\d+\.\d+\.\d+)/gm)].map((m) => m[1]); return v.slice(0, 3).join() === '0.1.2,0.1.1,0.1.0' && manifest().version === v[0]; } },
+  { id: 'A15', dim: 2, w: 2, tag: 'A', what: 'CHANGELOG is newest first, keeps 0.1.2, 0.1.1, 0.1.0 as its oldest entries, and its newest matches plugin.json version',
+    ok: () => {
+      const v = [...read(CHANGELOG).matchAll(/^## \[?(\d+\.\d+\.\d+)/gm)].map((m) => m[1]);
+      const n = (s) => s.split('.').reduce((a, x) => a * 1000 + Number(x), 0);
+      return v.slice(-3).join() === '0.1.2,0.1.1,0.1.0' && v.every((x, i) => i === 0 || n(v[i - 1]) > n(x)) && manifest().version === v[0];
+    } },
 
   // D3 skill consistency (PROJ-5)
   { id: 'b3', dim: 3, w: 7, tag: 'base', what: '`claude plugin validate .` passes', ok: () => validate().ok },

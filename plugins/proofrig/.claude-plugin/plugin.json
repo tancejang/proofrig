@@ -1,6 +1,6 @@
 {
   "name": "proofrig",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "license": "MIT",
   "description": "Harness engineering for Claude Code: build a verification harness once per system, then ship features reliably with /goal.",
   "author": {
