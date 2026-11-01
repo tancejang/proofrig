@@ -8,7 +8,7 @@ Claude Code plugin: `/proofrig:init` builds a verification harness for a system;
 | proofrig | plugin + its e2e suite | Markdown skills, JSON manifests, Node stdlib scripts | `.` |
 
 ## Commands
-- Validate plugin: `claude plugin validate .`
+- Validate plugin: `claude plugin validate --strict .` (marketplace) and `claude plugin validate --strict plugins/proofrig` (plugin.json, skill frontmatter)
 - E2E (live model, ~20 min, exit 0 = pass): `PROOFRIG_E2E_MODEL=<router model id> node e2e/run.mjs [with-e2e|no-e2e]`
 - Hook tests: `node harness/golden-tasks/hooks.test.mjs`
 - No build, lint, or typecheck.

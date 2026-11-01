@@ -11,7 +11,7 @@ import assert from 'node:assert';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'proofrig-hooks-'));
-fs.cpSync(REPO, root, { recursive: true, filter: (src) => !src.includes(`${path.sep}.git`) || src.endsWith('.gitignore') });
+fs.cpSync(REPO, root, { recursive: true, filter: (src) => path.basename(src) !== '.git' });
 
 function hook(name, payload, env = {}) {
   const r = spawnSync(process.execPath, [path.join(root, '.claude/hooks', name)], {
@@ -59,6 +59,30 @@ test('component scoping and read-only agents', () => {
   assert.ok(sh('git commit -m x', { agent_type: 'verifier' }).blocked, 'verifier commit');
   assert.ok(sh('echo x > notes.txt', { agent_type: 'verifier' }).blocked, 'verifier redirect');
   assert.ok(!sh('claude plugin validate . 2>&1', { agent_type: 'verifier' }).blocked, 'verifier runs checks');
+});
+
+test('subagent shell writes: reads with 2>&1 or quoted > allowed, nearest write forms blocked (HARN-1/2)', () => {
+  const sub = (c) => sh(c, { agent_type: 'general-purpose' }).blocked;
+  for (const c of ['ls 2>&1; cat harness/CLAUDE.md', 'ls 2>/dev/null; cat harness/CLAUDE.md', 'node --check e2e/run.mjs 2>&1',
+    'gh pr create --title x --body "Spec -> Plan; see harness/CLAUDE.md"', 'sed -n 1,5p harness/CLAUDE.md',
+    'echo x > specs/demo-harness/notes.md']) assert.ok(!sub(c), `allowed: ${c}`);
+  for (const c of ['echo x > harness/a.md', 'cat a 2>&1 > e2e/x', 'echo x >> .claude/notes', 'echo x > "harness/a.md"',
+    'echo hi>harness/a.md', 'echo x &> harness/z', 'echo "->" > harness/a.md', 'cat a | tee -a .claude/x', 'cp -r a ./harness/',
+    'printf x >| e2e/y', 'sed -i s/a/b/ .claude/hooks/guard.mjs', 'Set-Content harness\\a.md x', 'echo x > HARNESS/a.md',
+    'cp a "$(pwd)"/harness/x', "sed -i 's/a/b/;s/c/d/' harness/x", 'cp "a;b" harness/x', 'echo x > ""harness/a.md',
+    'cp a $(echo)harness/x', 'cp a 2>&1 harness/x', 'cp a &>/dev/null harness/x', 'echo x | tee \\; harness/x',
+    'cp $(ls a|head -1) harness/x', 'echo x > $(echo )harness/a', 'echo "$(echo x ->harness/a)"',
+    'echo x >&0/../harness/a', 'cp a $X.claude/y', 'echo \\"x ->harness/a \\"', 'echo x > ${X:-harness/a}', 'cp a ${X-harness/a}',
+    'cp a $(echo -harness/a | cut -c2-)', `echo "$'" ->harness/a "'"`, `echo "\\"'" ->harness/a "'"`]) {
+    assert.ok(sub(c), `blocked: ${c}`);
+  }
+});
+
+test('guard fails closed on empty or invalid stdin', () => {
+  for (const input of ['', '  \n', '{not json', 'null']) {
+    const r = spawnSync(process.execPath, [path.join(root, '.claude/hooks/guard.mjs')], { encoding: 'utf8', input, env: { ...process.env, CLAUDE_PROJECT_DIR: root } });
+    assert.ok(r.status === 2 && /proofrig guard:/.test(r.stderr), JSON.stringify(input));
+  }
 });
 
 test('locked specs', () => {

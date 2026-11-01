@@ -15,7 +15,8 @@ const scripts = ['e2e', '.claude/hooks', 'harness/golden-tasks'].flatMap((d) => 
   return fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.mjs')).map((f) => path.join(dir, f)) : [];
 });
 const checks = [
-  ['claude plugin validate .', 'claude', ['plugin', 'validate', '.']],
+  ['claude plugin validate --strict .', 'claude', ['plugin', 'validate', '--strict', '.']],
+  ['claude plugin validate --strict plugins/proofrig', 'claude', ['plugin', 'validate', '--strict', 'plugins/proofrig']],
   ...scripts.map((s) => [`node --check ${path.relative(root, s)}`, process.execPath, ['--check', s]]),
 ];
 
